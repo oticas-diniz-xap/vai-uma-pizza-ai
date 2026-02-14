@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio Diniz - Tamanho Certo</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* --- ESTILOS GERAIS --- */
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { margin: 0; background-color: #c4121a; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; user-select: none; -webkit-user-select: none; }
+
+        /* --- LOGIN --- */
+        #login-screen { background-color: #c4121a; width: 100%; max-width: 400px; padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 15px; }
+        .form-logo-container { display: flex; justify-content: center; margin-bottom: 5px; }
+        .form-logo-container img { max-width: 200px; height: auto; }
+        .header-title { color: white; font-size: 1.8rem; font-weight: bold; margin-bottom: 20px; }
+        input { width: 100%; padding: 15px; border-radius: 8px; border: none; font-size: 1rem; outline: none; }
+        .login-btn { width: 100%; padding: 15px; border-radius: 50px; border: none; background-color: #ffcc00; color: black; font-weight: bold; font-size: 1.2rem; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 0 #b38f00; }
+        .login-btn:active { transform: translateY(4px); box-shadow: none; }
+
+        /* --- JOGO --- */
+        #game-screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; padding: 20px; }
+        
+        .timer-container { width: 100%; height: 12px; background: rgba(0,0,0,0.3); border-radius: 10px; margin-bottom: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
+        .timer-bar { height: 100%; background: #ffcc00; width: 100%; transition: width 0.1s linear; }
+
+        .level-info { text-align: center; color: white; font-weight: bold; margin-bottom: 10px; font-size: 1.2rem; }
+        .instruction { color: #ffd7d7; margin-bottom: 30px; font-size: 1.3rem; text-align: center; font-weight: 600; }
+
+        .comparison-area { display: flex; justify-content: center; gap: 20px; width: 100%; }
+
+        .option-card {
+            background: white;
+            width: 160px;
+            height: 220px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .option-card:active { transform: translateY(4px); box-shadow: none; }
+        .option-content { font-weight: 900; color: #c4121a; line-height: 1; }
+
+        /* --- MODAL --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 200; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 20px; text-align: center; max-width: 350px; border: 4px solid #ffcc00; width: 90%; position: relative; z-index: 201; }
+        .prize-display { font-size: 1.8rem; font-weight: 900; color: #c4121a; margin: 15px 0; border: 2px dashed #c4121a; padding: 15px; border-radius: 10px; background: #fff5f5; }
+        .modal-title { font-size: 1.5rem; margin: 0; color: #333; }
+        .btn-continue { background: #28a745; color: white; box-shadow: 0 4px 0 #1e7e34; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="form-logo-container">
+            <img src="login.png" alt="Óticas Diniz">
+        </div>
+        <div class="header-title">Vai uma pizza ai?🍕</div>
+        <input type="text" id="input-name" placeholder="Nome completo">
+        <input type="password" id="input-pass" placeholder="Acesso gerência">
+        <div id="login-error" style="color: #ffcccc; font-size: 0.9rem; min-height: 20px;"></div>
+        <button class="login-btn" onclick="validateAndLogin()">INICIAR DESAFIO</button>
+    </div>
+
+    <div id="game-screen">
+        <div class="level-info" id="level-display">Nível 1/5</div>
+        <div class="timer-container"><div class="timer-bar" id="timer-bar"></div></div>
+        <div class="instruction">Toque na letra MAIOR!</div>
+        
+        <div class="comparison-area" id="comparison-area">
+            <div class="option-card" id="card-left" onclick="checkChoice('left')">
+                <div class="option-content" id="content-left">A</div>
+            </div>
+            <div class="option-card" id="card-right" onclick="checkChoice('right')">
+                <div class="option-content" id="content-right">A</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="success-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">ACERTOU! 👁️</h2>
+            <p>Prepare-se para o próximo...</p>
+            <div class="prize-display">Próximo Nível</div>
+            <button class="login-btn btn-continue" onclick="nextLevel()">CONTINUAR >></button>
+        </div>
+    </div>
+
+    <div class="modal" id="final-modal">
+        <div class="modal-content">
+            <h2 class="modal-title" id="final-title">FIM DE JOGO!</h2>
+            <p id="final-msg">Resultado final:</p>
+            <div class="prize-display" id="final-prize">NADA</div>
+            <p style="font-size: 0.9rem; color: #555;">Mostre ao vendedor.</p>
+            <button class="login-btn" onclick="location.reload()">INÍCIO</button>
+        </div>
+    </div>
+
+    <script>
+        const MASTER_PASS = "Diniz";
+        const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1469048622569095249/nlMtiNkkLiOvqXjtL_70a5M55vjs0qIsSCM5MiqwBPMQw8APRWAgX9ocEPzY5xRnP-NL"; 
+        const PREMIO_FINAL = "VALE PIZZA";
+
+        const LEVELS = [
+            { time: 8,  diff: 0.50, char: "A" },
+            { time: 7,  diff: 0.75, char: "H" },
+            { time: 6,  diff: 0.88, char: "O" },
+            { time: 5,  diff: 0.94, char: "X" },
+            { time: 4,  diff: 0.97, char: "8" }
+        ];
+
+        let currentUser = { name: "", isManager: false };
+        let currentLevelIndex = 0;
+        let timerInterval;
+        let timeLeft;
+        let isGameActive = false;
+        let correctSide = "";
+
+        function validateAndLogin() {
+            const name = document.getElementById('input-name').value;
+            const pass = document.getElementById('input-pass').value;
+            const error = document.getElementById('login-error');
+
+            if (pass === MASTER_PASS) {
+                currentUser = { name: name || "Gerente", isManager: true };
+                startGame();
+                return;
+            }
+
+            if (name.length < 3) { error.innerText = "Digite seu nome completo."; return; }
+
+            currentUser = { name: name, isManager: false };
+            startGame();
+        }
+
+        function startGame() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            currentLevelIndex = 0;
+            loadLevel(0);
+        }
+
+        function loadLevel(index) {
+            const levelConfig = LEVELS[index];
+            const baseSize = 120; 
+            document.getElementById('level-display').innerText = `Nível ${index + 1}/${LEVELS.length}`;
+            correctSide = Math.random() < 0.5 ? 'left' : 'right';
+            
+            const leftContent = document.getElementById('content-left');
+            const rightContent = document.getElementById('content-right');
+            leftContent.innerText = levelConfig.char;
+            rightContent.innerText = levelConfig.char;
+
+            if (correctSide === 'left') {
+                leftContent.style.fontSize = `${baseSize}px`;
+                rightContent.style.fontSize = `${baseSize * levelConfig.diff}px`;
+            } else {
+                leftContent.style.fontSize = `${baseSize * levelConfig.diff}px`;
+                rightContent.style.fontSize = `${baseSize}px`;
+            }
+            startTimer(levelConfig.time);
+        }
+
+        function startTimer(seconds) {
+            timeLeft = seconds;
+            const totalTime = seconds;
+            const bar = document.getElementById('timer-bar');
+            bar.style.width = '100%';
+            bar.style.backgroundColor = '#ffcc00';
+            isGameActive = true;
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isGameActive) return;
+                timeLeft -= 0.1;
+                const percentage = (timeLeft / totalTime) * 100;
+                bar.style.width = `${percentage}%`;
+                if (percentage < 30) bar.style.backgroundColor = '#ff4444';
+                if (timeLeft <= 0) gameOver("Tempo Esgotado!");
+            }, 100);
+        }
+
+        function checkChoice(side) {
+            if (!isGameActive) return;
+            if (side === correctSide) {
+                winLevel();
+            } else {
+                gameOver("Errou!");
+            }
+        }
+
+        function winLevel() {
+            clearInterval(timerInterval);
+            isGameActive = false;
+            if (currentLevelIndex >= LEVELS.length - 1) {
+                triggerConfetti();
+                finishGameTotal();
+            } else {
+                document.getElementById('success-modal').style.display = 'flex';
+            }
+        }
+
+        function nextLevel() {
+            document.getElementById('success-modal').style.display = 'none';
+            currentLevelIndex++;
+            loadLevel(currentLevelIndex);
+        }
+
+        function gameOver(reason) {
+            clearInterval(timerInterval);
+            isGameActive = false;
+            document.getElementById('final-title').innerText = "QUE PENA!";
+            document.getElementById('final-msg').innerText = `${reason} Você não atingiu o nível final.`;
+            document.getElementById('final-prize').innerText = "TENTE NOVAMENTE";
+            document.getElementById('final-modal').style.display = 'flex';
+            sendToDiscord(currentUser.name, "NADA (Perdeu no Nível " + (currentLevelIndex + 1) + ")");
+        }
+
+        function finishGameTotal() {
+            document.getElementById('final-title').innerText = "VISÃO DE ÁGUIA!";
+            document.getElementById('final-msg').innerText = "VOCÊ ZEROU O DESAFIO E GANHOU:";
+            document.getElementById('final-prize').innerText = PREMIO_FINAL;
+            document.getElementById('final-modal').style.display = 'flex';
+            sendToDiscord(currentUser.name, PREMIO_FINAL);
+        }
+
+        function triggerConfetti() {
+            const duration = 2000;
+            const end = Date.now() + duration;
+            (function frame() {
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 9999 });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 9999 });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        async function sendToDiscord(ganhador, prêmio) {
+            const payload = {
+                content: `📏 **RESULTADO DO JOGO DE TAMANHOS**`,
+                embeds: [{
+                    title: "Desafio 'Qual é Maior?'",
+                    color: prêmio.includes("PIZZA") ? 3066993 : 15158588,
+                    fields: [
+                        { name: "👤 Jogador", value: ganhador, inline: true },
+                        { name: "🎁 Prêmio Final", value: `**${prêmio}**`, inline: false },
+                        { name: "📊 Nível Atingido", value: `${currentLevelIndex + 1} / ${LEVELS.length}`, inline: true }
+                    ],
+                    footer: { text: `Data: ${new Date().toLocaleString('pt-BR')}` }
+                }]
+            };
+            try { await fetch(DISCORD_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch (e) {}
+        }
+    </script>
+</body>
+</html>
